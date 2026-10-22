@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+
+# Settings and secrets — copy .env.example to .env locally
+.env
+.env.*
+!.env.example
+
+# Local development database (npm run db:dev) and test leftovers
+.pgdata/
+.e2e-sessions.json
+
+# Backups made by npm run backup land in ../data/, outside this repository — never commit family data
+*.dump
+backup-*.json
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

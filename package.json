@@ -1,0 +1,36 @@
+{
+  "name": "kudumbam-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API server for the shared Kudumbam family tree (Express + PostgreSQL, Supabase sign-in)",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/index.ts",
+    "dev": "node --env-file-if-exists=.env --watch src/index.ts",
+    "db:dev": "node --env-file-if-exists=.env scripts/dev-db.ts",
+    "member": "node --env-file-if-exists=.env scripts/member.ts",
+    "backup": "node --env-file-if-exists=.env scripts/backup.ts",
+    "test": "node --test test/*.test.ts",
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
+    "jose": "^6.2.13",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
+    "@electric-sql/pglite-socket": "^0.2.14",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
+    "typescript": "~5.9.2"
+  }
+}

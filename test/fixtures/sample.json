@@ -1,0 +1,180 @@
+{
+  "people": {
+    "I1": {
+      "id": "I1",
+      "given": "Arthur",
+      "surname": "Example",
+      "marriedName": "Example",
+      "sex": "M",
+      "birthDate": "3 MAR 1940",
+      "birthPlace": "Springfield",
+      "deceased": true,
+      "deathDate": "ABT 2010",
+      "deathPlace": "Shelbyville",
+      "notes": "",
+      "extra": [
+        {
+          "level": 1,
+          "tag": "OCCU",
+          "value": "Carpenter",
+          "children": []
+        }
+      ]
+    },
+    "I2": {
+      "id": "I2",
+      "given": "Beatrice",
+      "surname": "Sample",
+      "marriedName": "Example",
+      "sex": "F",
+      "birthDate": "14 JUL 1944",
+      "birthPlace": "",
+      "deceased": false,
+      "deathDate": "",
+      "deathPlace": "",
+      "notes": "Loved gardening.\nKept bees for thirty years.",
+      "extra": []
+    },
+    "I3": {
+      "id": "I3",
+      "given": "Charles",
+      "surname": "Example",
+      "marriedName": "",
+      "sex": "M",
+      "birthDate": "12 DEC 1968",
+      "birthPlace": "",
+      "deceased": false,
+      "deathDate": "",
+      "deathPlace": "",
+      "notes": "",
+      "extra": []
+    },
+    "I4": {
+      "id": "I4",
+      "given": "Diana",
+      "surname": "Example",
+      "marriedName": "",
+      "sex": "F",
+      "birthDate": "",
+      "birthPlace": "",
+      "deceased": true,
+      "deathDate": "",
+      "deathPlace": "",
+      "notes": "",
+      "extra": []
+    },
+    "I5": {
+      "id": "I5",
+      "given": "Eleanor",
+      "surname": "Placeholder",
+      "marriedName": "",
+      "sex": "F",
+      "birthDate": "",
+      "birthPlace": "",
+      "deceased": false,
+      "deathDate": "",
+      "deathPlace": "",
+      "notes": "",
+      "extra": []
+    },
+    "I6": {
+      "id": "I6",
+      "given": "Frank",
+      "surname": "Example",
+      "marriedName": "",
+      "sex": "M",
+      "birthDate": "1995",
+      "birthPlace": "",
+      "deceased": false,
+      "deathDate": "",
+      "deathPlace": "",
+      "notes": "",
+      "extra": []
+    },
+    "I7": {
+      "id": "I7",
+      "given": "Grace",
+      "surname": "Mock",
+      "marriedName": "",
+      "sex": "F",
+      "birthDate": "",
+      "birthPlace": "",
+      "deceased": false,
+      "deathDate": "",
+      "deathPlace": "",
+      "notes": "",
+      "extra": []
+    },
+    "I8": {
+      "id": "I8",
+      "given": "Harriet",
+      "surname": "",
+      "marriedName": "",
+      "sex": "U",
+      "birthDate": "",
+      "birthPlace": "",
+      "deceased": false,
+      "deathDate": "",
+      "deathPlace": "",
+      "notes": "",
+      "extra": []
+    }
+  },
+  "families": {
+    "F1": {
+      "id": "F1",
+      "children": [
+        "I3",
+        "I4"
+      ],
+      "marrDate": "5 JUN 1965",
+      "marrPlace": "Springfield",
+      "extra": [],
+      "husb": "I1",
+      "wife": "I2",
+      "current": true
+    },
+    "F2": {
+      "id": "F2",
+      "children": [
+        "I6"
+      ],
+      "marrDate": "",
+      "marrPlace": "",
+      "extra": [],
+      "husb": "I3",
+      "wife": "I5",
+      "current": false
+    },
+    "F3": {
+      "id": "F3",
+      "children": [
+        "I8"
+      ],
+      "marrDate": "",
+      "marrPlace": "",
+      "extra": [
+        {
+          "level": 1,
+          "tag": "_UID",
+          "value": "1234-ABCD",
+          "children": []
+        }
+      ],
+      "husb": "I3",
+      "wife": "I7",
+      "current": true
+    }
+  },
+  "order": [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8"
+  ],
+  "submitterName": "Test Submitter"
+}

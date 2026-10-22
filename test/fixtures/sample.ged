@@ -1,0 +1,97 @@
+0 HEAD
+1 SOUR Family Echo
+2 WWW http://www.familyecho.com/
+1 FILE Example Family
+1 DATE 1 JAN 2026
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 SUBM @I3@
+2 NAME Test Submitter
+1 CHAR UTF-8
+0 @I1@ INDI
+1 NAME Arthur /Example/
+2 GIVN Arthur
+2 SURN Example
+2 _MARNM Example
+1 SEX M
+1 BIRT
+2 DATE 3 MAR 1940
+2 PLAC Springfield
+1 DEAT
+2 DATE ABT 2010
+2 PLAC Shelbyville
+1 OCCU Carpenter
+1 FAMS @F1@
+0 @I2@ INDI
+1 NAME Beatrice /Sample/
+2 GIVN Beatrice
+2 SURN Sample
+2 _MARNM Example
+1 SEX F
+1 BIRT
+2 DATE 14 JUL 1944
+1 NOTE Loved gardening.
+2 CONT Kept bees for thirty years.
+1 FAMS @F1@
+0 @I3@ INDI
+1 NAME Charles /Example/
+2 GIVN Charles
+2 SURN Example
+1 SEX M
+1 BIRT
+2 DATE 12 DEC 1968
+1 FAMS @F2@
+1 FAMS @F3@
+1 FAMC @F1@
+0 @I4@ INDI
+1 NAME Diana /Example/
+2 GIVN Diana
+2 SURN Example
+1 SEX F
+1 DEAT Y
+1 FAMC @F1@
+0 @I5@ INDI
+1 NAME Eleanor /Placeholder/
+2 GIVN Eleanor
+2 SURN Placeholder
+1 SEX F
+1 FAMS @F2@
+0 @I6@ INDI
+1 NAME Frank /Example/
+2 GIVN Frank
+2 SURN Example
+1 SEX M
+1 BIRT
+2 DATE 1995
+1 FAMC @F2@
+0 @I7@ INDI
+1 NAME Grace /Mock/
+2 GIVN Grace
+2 SURN Mock
+1 SEX F
+1 FAMS @F3@
+0 @I8@ INDI
+1 NAME Harriet
+1 FAMC @F3@
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 CHIL @I3@
+1 CHIL @I4@
+1 MARR
+2 DATE 5 JUN 1965
+2 PLAC Springfield
+1 _CURRENT Y
+0 @F2@ FAM
+1 HUSB @I3@
+1 WIFE @I5@
+1 CHIL @I6@
+1 _CURRENT N
+0 @F3@ FAM
+1 HUSB @I3@
+1 WIFE @I7@
+1 CHIL @I8@
+1 _CURRENT Y
+1 _UID 1234-ABCD
+0 TRLR

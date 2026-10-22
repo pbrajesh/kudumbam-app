@@ -1,0 +1,2 @@
+# Unix line endings everywhere (the server runs on Linux, e.g. a Raspberry Pi).
+* text=auto eol=lf
