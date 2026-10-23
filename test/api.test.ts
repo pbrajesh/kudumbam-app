@@ -93,7 +93,7 @@ async function startPostgres(): Promise<{ db: Db; stop: () => Promise<void> }> {
 
 before(async () => {
   ({ db, stop: stopDb } = await startPostgres());
-  assert.deepEqual(await migrate(db), [1, 2]);
+  assert.deepEqual(await migrate(db), [1, 2, 3]);
   assert.deepEqual(await migrate(db), [], 'second run must be a no-op');
   assert.equal((await db.query('select count(*)::int as n from trees')).rows[0].n, 0, 'an empty database gets no tree');
   treeA = await withTx(db, tx => createTree(tx, 'Test family', { email: OWNER.email }));
@@ -397,6 +397,9 @@ describe('isolation between trees', () => {
       ['GET', '/members'], ['POST', '/members', { email: 'intruder@example.com', role: 'owner' }],
       ['PATCH', '/members/other%40example.com', { role: 'viewer' }], ['DELETE', '/members/other%40example.com'],
       ['DELETE', '/members/me'],
+      ['PUT', '/members/me/claim', { personId: 'I1' }], ['DELETE', '/members/me/claim'], ['DELETE', '/members/me/person'],
+      ['PUT', '/members/other%40example.com/person', { personId: 'I1' }],
+      ['DELETE', '/members/other%40example.com/person'], ['DELETE', '/members/other%40example.com/claim'],
     ];
     for (const user of [EDITOR, OWNER, VIEWER]) {
       for (const [method, path, body] of routes) {
@@ -442,7 +445,7 @@ describe('migration from the single-tree database', () => {
         insert into tree_meta (key, value) values ('fileName', 'Old-Family.ged'), ('submitterName', 'Sub'),
           ('surnameRule', 'father-given'), ('homePersonId', 'I2');`);
 
-      assert.deepEqual(await migrate(pg.db), [2]);
+      assert.deepEqual(await migrate(pg.db), [2, 3]);
 
       const trees = (await pg.db.query('select * from trees')).rows;
       assert.equal(trees.length, 1);
@@ -540,7 +543,10 @@ describe('members', () => {
     assert.equal(r.status, 200, JSON.stringify(r.body));
     assert.deepEqual(emails(r.body), ['owner@example.com', 'editor@example.com', 'newbie@example.com', 'viewer@example.com']);
     const me = r.body.find((m: { email: string }) => m.email === 'viewer@example.com');
-    assert.deepEqual({ ...me, addedAt: undefined }, { email: 'viewer@example.com', role: 'viewer', joined: true, you: true, addedAt: undefined });
+    assert.deepEqual({ ...me, addedAt: undefined }, {
+      email: 'viewer@example.com', role: 'viewer', joined: true, you: true, addedAt: undefined,
+      personId: null, claimedPersonId: null,
+    });
     assert.equal(r.body.filter((m: { you: boolean }) => m.you).length, 1);
     assert.equal((await call('GET', A() + '/members', { user: STRANGER })).status, 404);
   });
@@ -623,6 +629,119 @@ describe('members', () => {
     assert.equal(r.status, 403);
     assert.match(r.body.error, /up to 8 members/);
   });
+});
+
+describe('who you are in the tree', () => {
+  // A fresh tree with the sample family: OWNER owns it, EDITOR edits, VIEWER and COUSIN view.
+  let treeL: string;
+  const L = () => `/trees/${treeL}`;
+  const at = (email: string, what: string) => `${L()}/members/${encodeURIComponent(email)}/${what}`;
+  const row = async (email: string) => (await db.query(
+    'select person_id, claimed_person_id from tree_members where tree_id = $1 and email = $2', [treeL, email])).rows[0];
+
+  before(async () => {
+    treeL = await withTx(db, tx => createTree(tx, 'Linked family', { email: OWNER.email, userId: OWNER.sub }));
+    await db.query(`insert into tree_members (tree_id, email, user_id, role) values ($1, $2, $3, 'editor'),
+                    ($1, $4, $5, 'viewer'), ($1, $6, $7, 'viewer')`,
+      [treeL, EDITOR.email, EDITOR.sub, 'viewer@example.com', VIEWER.sub, COUSIN.email, COUSIN.sub]);
+    assert.equal((await call('POST', L() + '/import', { user: OWNER, body: importBody(sampleTree()) })).status, 200);
+  });
+
+  test('nobody is linked at first; the tree says so', async () => {
+    const t = (await call('GET', L() + '/tree', { user: VIEWER })).body;
+    assert.deepEqual(t.you, { personId: null, claimedPersonId: null });
+    assert.equal(t.pendingClaims, 0);
+    assert.deepEqual((await call('GET', L(), { user: VIEWER })).body.you, { personId: null, claimedPersonId: null });
+  });
+
+  test('a member\'s "This is me" waits for an owner; owners see how many are waiting', async () => {
+    const r = await call('PUT', L() + '/members/me/claim', { user: VIEWER, body: { personId: 'I3' } });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.deepEqual(r.body.you, { personId: null, claimedPersonId: 'I3' });
+    assert.equal(r.body.pendingClaims, 0, 'only owners are told about waiting claims');
+    assert.equal((await call('GET', L() + '/tree', { user: OWNER })).body.pendingClaims, 1);
+    const list = (await call('GET', L() + '/members', { user: OWNER })).body;
+    assert.equal(list.find((m: { email: string }) => m.email === 'viewer@example.com').claimedPersonId, 'I3');
+  });
+
+  test('only owners approve, link or turn down claims', async () => {
+    for (const user of [EDITOR, VIEWER]) {
+      assert.equal((await call('PUT', at('viewer@example.com', 'person'), { user, body: { personId: 'I3' } })).status, 403);
+      assert.equal((await call('DELETE', at('viewer@example.com', 'claim'), { user })).status, 403);
+      assert.equal((await call('DELETE', at('viewer@example.com', 'person'), { user })).status, 403);
+    }
+    const r = await call('PUT', at('Viewer@Example.com', 'person'), { user: OWNER, body: { personId: 'I3' } });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.deepEqual(await row('viewer@example.com'), { person_id: 'I3', claimed_person_id: null });
+    const t = (await call('GET', L() + '/tree', { user: VIEWER })).body;
+    assert.deepEqual(t.you, { personId: 'I3', claimedPersonId: null });
+    assert.equal((await call('GET', L() + '/tree', { user: OWNER })).body.pendingClaims, 0);
+  });
+
+  test('a person can be linked to only one member', async () => {
+    const claim = await call('PUT', L() + '/members/me/claim', { user: COUSIN, body: { personId: 'I3' } });
+    assert.equal(claim.status, 409);
+    assert.match(claim.body.error, /already linked to viewer@example.com/);
+    const link = await call('PUT', at(COUSIN.email, 'person'), { user: OWNER, body: { personId: 'I3' } });
+    assert.equal(link.status, 409);
+    assert.deepEqual(await row(COUSIN.email), { person_id: null, claimed_person_id: null });
+  });
+
+  test('owners can turn a claim down, and members can take theirs back', async () => {
+    assert.equal((await call('PUT', L() + '/members/me/claim', { user: COUSIN, body: { personId: 'I4' } })).status, 200);
+    const r = await call('DELETE', at(COUSIN.email, 'claim'), { user: OWNER });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.deepEqual(await row(COUSIN.email), { person_id: null, claimed_person_id: null });
+    assert.equal((await call('PUT', L() + '/members/me/claim', { user: COUSIN, body: { personId: 'I4' } })).status, 200);
+    const back = await call('DELETE', L() + '/members/me/claim', { user: COUSIN });
+    assert.deepEqual(back.body.you, { personId: null, claimedPersonId: null });
+  });
+
+  test('owners are linked straight away, and can unlink anyone; members can unlink themselves', async () => {
+    const r = await call('PUT', L() + '/members/me/claim', { user: OWNER, body: { personId: 'I1' } });
+    assert.deepEqual(r.body.you, { personId: 'I1', claimedPersonId: null });
+    assert.equal((await call('DELETE', L() + '/members/me/person', { user: OWNER })).status, 200);
+    assert.deepEqual(await row(OWNER.email), { person_id: null, claimed_person_id: null });
+
+    assert.equal((await call('PUT', at(EDITOR.email, 'person'), { user: OWNER, body: { personId: 'I2' } })).status, 200);
+    assert.equal((await call('DELETE', at(EDITOR.email, 'person'), { user: OWNER })).status, 200);
+    assert.deepEqual(await row(EDITOR.email), { person_id: null, claimed_person_id: null });
+
+    const self = await call('DELETE', L() + '/members/me/person', { user: VIEWER });
+    assert.deepEqual(self.body.you, { personId: null, claimedPersonId: null });
+    assert.equal((await call('PUT', at(VIEWER.email, 'person'), { user: OWNER, body: { personId: 'I3' } })).status, 200);
+  });
+
+  test('unknown people, members and bad IDs are refused', async () => {
+    assert.equal((await call('PUT', L() + '/members/me/claim', { user: COUSIN, body: { personId: 'I99' } })).status, 404);
+    assert.equal((await call('PUT', L() + '/members/me/claim', { user: COUSIN, body: { personId: 'I 1' } })).status, 400);
+    assert.equal((await call('PUT', L() + '/members/me/claim', { user: COUSIN, body: { personId: 'I4', x: 1 } })).status, 400);
+    assert.equal((await call('PUT', at('nobody@example.com', 'person'), { user: OWNER, body: { personId: 'I4' } })).status, 404);
+    assert.equal((await call('PUT', L() + '/members/me/claim', { user: STRANGER, body: { personId: 'I4' } })).status, 404);
+  });
+
+  test('deleting the person, or importing a new file, clears links and claims', async () => {
+    assert.equal((await call('PUT', L() + '/members/me/claim', { user: COUSIN, body: { personId: 'I8' } })).status, 200);
+    const t = (await call('GET', L() + '/tree', { user: OWNER })).body;
+    assert.equal((await call('DELETE', `${L()}/people/I8?version=${t.versions.people.I8}`, { user: EDITOR })).status, 200);
+    assert.deepEqual(await row(COUSIN.email), { person_id: null, claimed_person_id: null });
+    assert.deepEqual(await row('viewer@example.com'), { person_id: 'I3', claimed_person_id: null }, 'others keep theirs');
+
+    const r = await call('POST', L() + '/import', { user: OWNER, body: importBody(sampleTree()) });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.body.you, { personId: null, claimedPersonId: null });
+    assert.deepEqual(await row('viewer@example.com'), { person_id: null, claimed_person_id: null });
+  });
+
+  test('links never cross trees', async () => {
+    assert.equal((await call('PUT', B() + '/members/me/claim', { user: VIEWER, body: { personId: 'I1' } })).status, 404);
+    await assert.rejects(withTx(db, tx => tx.query(
+      'update tree_members set person_id = $3 where tree_id = $1 and email = $2',
+      [treeL, 'viewer@example.com', 'I_ONLY_IN_B'])));
+  });
+
+  // Later tests count the trees these accounts belong to.
+  after(async () => { await db.query('delete from trees where id = $1', [treeL]); });
 });
 
 describe('limits', () => {

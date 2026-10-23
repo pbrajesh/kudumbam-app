@@ -52,11 +52,16 @@ All routes except `/api/health` need `Authorization: Bearer <Supabase access tok
 | `POST /api/trees/:treeId/import` | editor: replace the tree with an imported file |
 | `…/people`, `…/families`, `…/families/:id/children`, `…/families/:id/spouses` | editor: per-record REST routes |
 | `GET` · `POST` · `PATCH` · `DELETE /api/trees/:treeId/members…` | viewer · owner · owner · owner; `DELETE …/members/me` = leave |
+| `PUT` · `DELETE …/members/me/claim` · `DELETE …/members/me/person` | viewer: "This is me" on a person (owners are linked at once) · take the claim back · unlink yourself |
+| `PUT` · `DELETE …/members/:email/person` · `DELETE …/members/:email/claim` | owner: link a member to a person (approves their claim) · unlink · turn a claim down |
 
 - **Isolation:** every query is limited to the tree in the URL; a tree you are not a member of answers **404**, like
   one that does not exist. Composite foreign keys stop records linking across trees.
 - **Concurrency:** every person and family carries a `version`; a stale write answers **409** and changes nothing.
 - **Roles:** viewer < editor < owner. A tree always keeps at least one owner.
+- **Who you are:** each membership can be linked to one person in that tree, and each person to one member.
+  `GET …/tree` and `GET /api/trees/:treeId` include `you: { personId, claimedPersonId }` and, for owners,
+  `pendingClaims`. Deleting the person or importing a new file clears the link.
 - **Rate limits** (429): per IP for all requests, per user for changes, new trees and added members (`src/limits.ts`).
 
 ## Command-line tools
@@ -85,7 +90,7 @@ on the Pi with `install-update.sh` from the web app's guide (kudumbam-web, `depl
 ## Tests
 
 ```bash
-npm test          # 45 end-to-end API tests against a real (in-memory) PostgreSQL with real token checks
+npm test          # 54 end-to-end API tests against a real (in-memory) PostgreSQL with real token checks
 npm run typecheck
 ```
 

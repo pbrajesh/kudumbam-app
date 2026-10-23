@@ -96,5 +96,7 @@ export const DeleteAccountQuery = z.object({ confirm: z.string().trim().toLowerC
 
 /** Deleting a tree needs its exact name typed back, so it cannot happen by accident. */
 export const DeleteTreeQuery = z.object({ confirm: z.string() });
+/** "This is me", or an owner linking a member to a person. */
+export const PersonLinkSchema = z.object({ personId: Id }).strict();
 export const LinkSchema = z.object({ personId: Id, version: Version }).strict();
 export const VersionQuery = z.object({ version: z.coerce.number().int().positive() });
