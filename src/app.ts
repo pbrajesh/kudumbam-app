@@ -8,14 +8,17 @@ import {
 import { deleteAccountData } from './account-repo.ts';
 import { withTx, type Db, type Tx } from './db.ts';
 import { DEFAULT_RATE_LIMITS, rateLimiters, type RateLimits } from './limits.ts';
-import { addMember, changeRole, emailOfMember, listMembers, removeMember } from './members-repo.ts';
+import {
+  addMember, changeRole, claimPerson, dropClaim, emailOfMember, linkOf, linkPerson, listMembers, pendingClaims,
+  removeMember, unlinkPerson,
+} from './members-repo.ts';
 import {
   applyChanges, createTree, deleteTree, enforcePeopleLimit, HttpError, importTree, loadTree, renameTree, saveSettings,
   treeName, treesCreatedBy, treesOf, type TreeSnapshot,
 } from './tree-repo.ts';
 import {
   AddMemberSchema, ChangeRoleSchema, DeleteAccountQuery, ChangeSetSchema, CreateTreeSchema, DeleteTreeQuery, EmailSchema, FamilyPatchSchema,
-  FamilySchema, Id, ImportSchema, LinkSchema, PersonPatchSchema, PersonSchema, TreePatchSchema, VersionQuery,
+  FamilySchema, Id, ImportSchema, LinkSchema, PersonLinkSchema, PersonPatchSchema, PersonSchema, TreePatchSchema, VersionQuery,
   type ChangeSet,
 } from './validation.ts';
 
@@ -123,12 +126,17 @@ export function createApp({
     if (!p) throw new HttpError(404, `Person ${id} was not found. They may have been deleted.`);
     return { ...structuredClone(p), version: t.versions.people[id] };
   }
+  /** Who you are in this tree, and (for owners) how many "This is me" claims wait for approval. */
+  async function you(res: Response) {
+    const { treeId, id, role } = member(res);
+    return { you: await linkOf(db, treeId, id), pendingClaims: role === 'owner' ? await pendingClaims(db, treeId) : 0 };
+  }
   async function info(res: Response) {
     const { treeId, role } = member(res);
     const t = await loadTree(db, treeId);
     return {
       id: treeId, name: await treeName(db, treeId), role, fileName: t.fileName, settings: t.settings,
-      peopleCount: t.data.order.length,
+      peopleCount: t.data.order.length, ...(await you(res)),
     };
   }
 
@@ -159,7 +167,7 @@ export function createApp({
   });
 
   tree.get('/tree', async (_req, res) => {
-    res.json({ ...(await loadTree(db, member(res).treeId)), role: member(res).role });
+    res.json({ ...(await loadTree(db, member(res).treeId)), role: member(res).role, ...(await you(res)) });
   });
 
   /** The app's main write path: one user action, all records it touches, in one transaction. */
@@ -174,7 +182,7 @@ export function createApp({
     if (d.people.length > maxPeoplePerTree) throw new HttpError(403, `A tree can have up to ${maxPeoplePerTree} people.`);
     const { treeId, email, role } = member(res);
     await withTx(db, tx => importTree(tx, treeId, d, email));
-    res.json({ ...(await loadTree(db, treeId)), role });
+    res.json({ ...(await loadTree(db, treeId)), role, ...(await you(res)) });
   });
 
   /* ---- people ---- */
@@ -304,6 +312,49 @@ export function createApp({
     res.json({ left: treeId });
   });
 
+  /** "This is me": any member. Owners are linked at once; others wait for an owner. Answers with your link. */
+  tree.put('/members/me/claim', async (req, res) => {
+    const { personId } = PersonLinkSchema.parse(req.body);
+    const { treeId, id } = member(res);
+    await withTx(db, async tx => claimPerson(tx, treeId, await emailOfMember(tx, treeId, id), personId));
+    res.json(await you(res));
+  });
+
+  /** Take back your own pending claim. */
+  tree.delete('/members/me/claim', async (_req, res) => {
+    const { treeId, id } = member(res);
+    await withTx(db, async tx => dropClaim(tx, treeId, await emailOfMember(tx, treeId, id)));
+    res.json(await you(res));
+  });
+
+  /** "This isn't me": remove your own link. */
+  tree.delete('/members/me/person', async (_req, res) => {
+    const { treeId, id } = member(res);
+    await withTx(db, async tx => unlinkPerson(tx, treeId, await emailOfMember(tx, treeId, id)));
+    res.json(await you(res));
+  });
+
+  /** Owners: link a member to a person — approving their claim, or directly. */
+  tree.put('/members/:email/person', owner, async (req, res) => {
+    const email = EmailSchema.parse(req.params.email);
+    const { personId } = PersonLinkSchema.parse(req.body);
+    await withTx(db, tx => linkPerson(tx, member(res).treeId, email, personId));
+    res.json(await members(res));
+  });
+
+  tree.delete('/members/:email/person', owner, async (req, res) => {
+    const email = EmailSchema.parse(req.params.email);
+    await withTx(db, tx => unlinkPerson(tx, member(res).treeId, email));
+    res.json(await members(res));
+  });
+
+  /** Owners: turn down a pending claim. */
+  tree.delete('/members/:email/claim', owner, async (req, res) => {
+    const email = EmailSchema.parse(req.params.email);
+    await withTx(db, tx => dropClaim(tx, member(res).treeId, email));
+    res.json(await members(res));
+  });
+
   tree.patch('/members/:email', owner, async (req, res) => {
     const email = EmailSchema.parse(req.params.email);
     const { role } = ChangeRoleSchema.parse(req.body);
@@ -339,7 +390,7 @@ function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunc
     res.status(413).json({ error: 'That is too much data for one request.' });
   } else {
     // Log the route and the error only: never request bodies (names, notes) or member emails from the URL.
-    const route = req.originalUrl.split('?')[0].replace(/\/members\/(?!me$)[^/]+/, '/members/:email');
+    const route = req.originalUrl.split('?')[0].replace(/\/members\/(?!me(\/|$))[^/]+/, '/members/:email');
     console.error(`500 ${req.method} ${route}`, err instanceof Error ? err.stack : String(err));
     res.status(500).json({ error: 'Something went wrong on the server.' });
   }
