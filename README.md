@@ -7,6 +7,51 @@ needs no Supabase secret.
 
 The web app (Angular + D3) is a separate project that talks to this API under `/api`.
 
+## Architecture
+
+This repository is the **API server** box below. The web app, the Raspberry Pi set-up and the backup scripts live in
+[kudumbam-web](https://github.com/pbrajesh/kudumbam-web).
+
+```mermaid
+flowchart LR
+    Browser["Relative's browser<br/>Angular 20 + D3.js app"]
+    Google["Google sign-in"]
+    CF["Cloudflare Tunnel<br/>(or port forwarding)"]
+
+    subgraph Pi["Raspberry Pi"]
+        direction TB
+        Apache["Apache :80"]
+        Static["/opt/family-tree/app<br/>built Angular app"]
+        API["API server :3000<br/>Node + Express 5<br/>systemd: family-tree-api"]
+        PG[("PostgreSQL<br/>database familytree")]
+        Dumps[("/var/backups/family-tree<br/>pg_dump, 14 days kept")]
+    end
+
+    subgraph Supabase["Supabase"]
+        Auth["Supabase Auth<br/>Google + email links"]
+        Copy[("Supabase Postgres<br/>schema familytree_backup")]
+    end
+
+    Browser -- "HTTPS" --> CF --> Apache
+    Apache -- "everything else" --> Static
+    Apache -- "/api/*" --> API
+    API -- "SQL" --> PG
+    Browser -- "sign in, get access token" --> Auth
+    Auth -. "OAuth" .-> Google
+    API -. "checks tokens against<br/>public keys (JWKS)" .-> Auth
+    PG -- "nightly 03:30<br/>family-tree-backup.timer" --> Dumps
+    PG -- "daily 16:00 IST<br/>family-tree-supabase.timer" --> Copy
+```
+
+- The browser signs in with Supabase Auth (Google or an email link) and sends the access token as
+  `Authorization: Bearer …`. This server checks it against the project's public keys (`src/auth.ts`); it needs no
+  Supabase secret.
+- On the Pi, Apache serves the built web app and passes `/api/*` to this server on `127.0.0.1:3000`
+  (systemd service `family-tree-api`). The server only talks to the local PostgreSQL; family data never goes to
+  Supabase except the backup copy.
+- Backups (kudumbam-web, `deploy/raspberry-pi/`): a nightly `pg_dump` at 03:30 kept for 14 days on the Pi, and a daily
+  16:00 IST copy into the private `familytree_backup` schema of the Supabase Postgres.
+
 ## Requirements
 
 - Node **22.18+** (runs the `.ts` files directly)
