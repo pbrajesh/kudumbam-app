@@ -20,3 +20,6 @@ backup-*.json
 .DS_Store
 Thumbs.db
 *.log
+
+# Raspberry Pi packages (deploy/package.ps1)
+deploy/out/
