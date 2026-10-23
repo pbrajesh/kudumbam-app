@@ -33,7 +33,7 @@ applied; add a new file). Check: `curl http://localhost:3000/api/health` → `{"
 | `PG_POOL_MAX` | Connection pool size. `1` with `db:dev` (PGlite is a single session); leave unset for real PostgreSQL |
 | `SUPABASE_URL` | Your Supabase project URL — tokens are checked against `<SUPABASE_URL>/auth/v1/.well-known/jwks.json` |
 | `CORS_ORIGINS` | Comma-separated web app origins if the app is served from another domain; empty when same-origin |
-| `TRUST_PROXY` | Proxies in front of the API (e.g. `1` behind Caddy/nginx, `2` behind Cloudflare Tunnel + Caddy), so rate limits see each visitor's IP |
+| `TRUST_PROXY` | Proxies in front of the API (e.g. `1` behind Apache/nginx, `2` behind Cloudflare Tunnel + Apache), so rate limits see each visitor's IP |
 | `PORT` | Default 3000 |
 | `MAX_TREES_PER_USER`, `MAX_MEMBERS_PER_TREE`, `MAX_PEOPLE_PER_TREE` | Limits (defaults 5, 200, 20000) |
 
@@ -69,6 +69,16 @@ npm run member -- remove someone@example.com [--tree <id or name>]
 npm run member -- list [--tree <id or name>]
 npm run backup                 # every table to ../data/backup-<time>.json
 ```
+
+## Package for the Raspberry Pi
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy\package.ps1
+```
+
+Type-checks, then packs the API code into `deploy\out\kudumbam-app-<date>.zip` (`server/`: `src`, `migrations`,
+`scripts`, `package.json`, the lock file). No `.env` files, `node_modules`, local database, tests or data. Install it
+on the Pi with `install-update.sh` from the web app's guide (kudumbam-web, `deploy/raspberry-pi/README.md`).
 
 ## Tests
 
