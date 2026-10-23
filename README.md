@@ -72,12 +72,14 @@ npm run backup                 # every table to ../data/backup-<time>.json
 
 ## Package for the Raspberry Pi
 
-```powershell
-powershell -ExecutionPolicy Bypass -File deploy\package.ps1
+```bash
+bash deploy/package.sh
 ```
 
-Type-checks, then packs the API code into `deploy\out\kudumbam-app-<date>.zip` (`server/`: `src`, `migrations`,
-`scripts`, `package.json`, the lock file). No `.env` files, `node_modules`, local database, tests or data. Install it
+Packs the API code into `deploy/out/kudumbam-app-<date>.zip` (`server/`: `src`, `migrations`,
+`scripts`, `package.json`, the lock file). No `.env` files, `node_modules`, local database, tests or data. There is
+no build step (run `npm run typecheck` yourself first if you like), and it zips with `zip`, or Python when `zip` is
+missing. Install it
 on the Pi with `install-update.sh` from the web app's guide (kudumbam-web, `deploy/raspberry-pi/README.md`).
 
 ## Tests
