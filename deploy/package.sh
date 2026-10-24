@@ -4,7 +4,7 @@
 # Contains server/ with the API code only: src, migrations, scripts, package.json, package-lock.json, tsconfig.json.
 # Node runs the .ts files directly, so there is nothing to build; run npm run typecheck yourself first if you like.
 # Never includes .env files (not even .env.example), node_modules, the local database (.pgdata), tests, data or backups.
-# Install it on the Pi with install-update.sh from the web app's package (kudumbam-web, deploy/raspberry-pi).
+# Install it on the Pi with install-server.sh from the web app's package (kudumbam-web, deploy/raspberry-pi).
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$root"

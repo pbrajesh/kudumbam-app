@@ -130,7 +130,7 @@ Packs the API code into `deploy/out/kudumbam-app-<date>.zip` (`server/`: `src`, 
 `scripts`, `package.json`, the lock file). No `.env` files, `node_modules`, local database, tests or data. There is
 no build step (run `npm run typecheck` yourself first if you like), and it zips with `zip`, or Python when `zip` is
 missing. Install it
-on the Pi with `install-update.sh` from the web app's guide (kudumbam-web, `deploy/raspberry-pi/README.md`).
+on the Pi with `install-server.sh` from the web app's guide (kudumbam-web, `deploy/raspberry-pi/README.md`).
 
 ## Tests
 
